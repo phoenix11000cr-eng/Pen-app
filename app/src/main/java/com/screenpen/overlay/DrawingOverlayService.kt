@@ -51,31 +51,34 @@ class DrawingOverlayService : Service() {
 
     private fun showToolbar() {
         toolbar?.let { wm.removeView(it); toolbar = null; return }
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(8, 8, 8, 8); setBackgroundColor(Color.argb(235, 30, 38, 48)) }
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(8, 8, 8, 8); setBackgroundColor(Color.argb(245, 30, 38, 48)) }
         fun button(label: String, action: () -> Unit) {
-            bar.addView(Button(this).apply { text = label; textSize = 12f; setOnClickListener { action() } })
+            bar.addView(Button(this).apply { text = label; textSize = 12f; isAllCaps = false; setOnClickListener { action() } })
         }
         button(if (drawing) "✍ Draw: ON" else "✍ Draw: OFF") { drawing = !drawing; updateTouchMode(); showToolbar() }
-        button("🔴 Red pen") { color = Color.RED; width = 7f; canvasView?.invalidate() }
-        button("🔵 Blue pen") { color = Color.BLUE; width = 7f; canvasView?.invalidate() }
-        button("🟢 Green pen") { color = Color.rgb(0, 150, 60); width = 7f; canvasView?.invalidate() }
-        button("🖍 Highlighter") { color = Color.YELLOW; width = 22f; canvasView?.invalidate() }
+        button("🔴 Red pen") { color = Color.RED; width = 7f }
+        button("🔵 Blue pen") { color = Color.BLUE; width = 7f }
+        button("🟢 Green pen") { color = Color.rgb(0, 150, 60); width = 7f }
+        button("🖍 Highlighter") { color = Color.YELLOW; width = 22f }
         button("↩ Undo") { canvasView?.undo() }
         button("Clear all") { canvasView?.clear() }
         button("Close pen toolbar") { toolbar?.let { wm.removeView(it) }; toolbar = null }
         button("Exit Screen Pen") { stopSelf() }
         toolbar = bar
         val p = WindowManager.LayoutParams(-2, -2, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.END; x = 12; y = 250 }
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, PixelFormat.TRANSLUCENT).apply {
+            gravity = Gravity.TOP or Gravity.END; x = 12; y = 250
+        }
         wm.addView(bar, p)
+        bar.bringToFront()
         updateTouchMode()
     }
 
     private fun updateTouchMode() {
         canvasView?.let { v ->
             val p = v.layoutParams as WindowManager.LayoutParams
-            p.flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                (if (drawing) 0 else WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            p.flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                (if (!drawing) WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE else 0)
             wm.updateViewLayout(v, p)
             v.drawingEnabled = drawing
         }
@@ -102,12 +105,12 @@ class DrawingOverlayService : Service() {
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
             if (!drawingEnabled) return false
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> { active = Path().apply { moveTo(event.x, event.y) }; invalidate(); return true }
                 MotionEvent.ACTION_MOVE -> { active?.lineTo(event.x, event.y); invalidate(); return true }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { active?.let { strokes.add(Stroke(it, color, this@DrawingOverlayService.width)) }; active = null; invalidate(); return true }
             }
-            return true
+            return false
         }
 
         fun undo() { if (strokes.isNotEmpty()) strokes.removeAt(strokes.lastIndex); invalidate() }
