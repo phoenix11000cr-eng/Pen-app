@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 class DrawingOverlayService : Service() {
+    private data class Stroke(val path: Path, val color: Int, val width: Float)
     private lateinit var wm: WindowManager
     private var canvasView: DrawView? = null
     private var toolbar: LinearLayout? = null
@@ -87,7 +88,6 @@ class DrawingOverlayService : Service() {
     }
 
     private inner class DrawView : View(this@DrawingOverlayService) {
-        data class Stroke(val path: Path, val color: Int, val width: Float)
         private val strokes = mutableListOf<Stroke>()
         private var active: Path? = null
         var drawingEnabled = false
@@ -97,7 +97,7 @@ class DrawingOverlayService : Service() {
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             strokes.forEach { s -> paint.color = s.color; paint.strokeWidth = s.width; paint.alpha = if (s.color == Color.YELLOW) 105 else 255; canvas.drawPath(s.path, paint) }
-            active?.let { paint.color = color; paint.strokeWidth = width; paint.alpha = if (color == Color.YELLOW) 105 else 255; canvas.drawPath(it, paint) }
+            active?.let { paint.color = color; paint.strokeWidth = this@DrawingOverlayService.width; paint.alpha = if (color == Color.YELLOW) 105 else 255; canvas.drawPath(it, paint) }
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -105,7 +105,7 @@ class DrawingOverlayService : Service() {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> { active = Path().apply { moveTo(event.x, event.y) }; invalidate(); return true }
                 MotionEvent.ACTION_MOVE -> { active?.lineTo(event.x, event.y); invalidate(); return true }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { active?.let { strokes.add(Stroke(it, color, width)) }; active = null; invalidate(); return true }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { active?.let { strokes.add(Stroke(it, color, this@DrawingOverlayService.width)) }; active = null; invalidate(); return true }
             }
             return true
         }
