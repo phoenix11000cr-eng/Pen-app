@@ -103,8 +103,14 @@ class DrawingOverlayService : Service() {
             active?.let { paint.color = color; paint.strokeWidth = this@DrawingOverlayService.width; paint.alpha = if (color == Color.YELLOW) 105 else 255; canvas.drawPath(it, paint) }
         }
 
+        private fun isStylus(event: MotionEvent): Boolean {
+            return event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS ||
+                event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER
+        }
+
         override fun onTouchEvent(event: MotionEvent): Boolean {
-            if (!drawingEnabled) return false
+            if (!drawingEnabled || !isStylus(event)) return false
+
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     active = Path().apply { moveTo(event.x, event.y) }
